@@ -13,6 +13,8 @@ import org.apache.jena.util.iterator.ExtendedIterator;
  * @author Cesar
  */
 public interface TBMConfiguration extends Resource {
+
+    public boolean hasElement(Resource element);
     
     public void addElement(Resource element);
     

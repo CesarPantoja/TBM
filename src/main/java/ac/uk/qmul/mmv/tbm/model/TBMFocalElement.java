@@ -29,5 +29,7 @@ public interface TBMFocalElement extends Resource{
     public void setMass(double mass);
     
     public double getMass();
+
+    public void updateMass(double mass);
     
 }

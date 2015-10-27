@@ -25,5 +25,7 @@ public interface TBMModel extends Model{
     public TBMPotential createPotential();
 
     public TBMPotential combine(TBMPotential potential1, TBMPotential potential2);
+    
+    public TBMConfiguration createConfiguration();
 
 }

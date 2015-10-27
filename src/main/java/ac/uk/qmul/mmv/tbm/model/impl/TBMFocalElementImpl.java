@@ -32,6 +32,11 @@ import org.apache.jena.vocabulary.RDF;
  */
 public class TBMFocalElementImpl extends ResourceImpl implements TBMFocalElement {
 
+    @Override
+    public TBMModel getModel(){
+        return (TBMModel)super.getModel();
+    }
+    
     public TBMFocalElementImpl(Node n, EnhGraph eg) {
         super(n, eg);
     }
@@ -52,10 +57,8 @@ public class TBMFocalElementImpl extends ResourceImpl implements TBMFocalElement
     }
 
     @Override
-    public void addConfiguration(Resource... elements) {
-        TBMConfiguration config = this.getModel()
-                .createResource(TBM.Configuration)
-                .as(TBMConfiguration.class);
+    public void addConfiguration(Resource... elements) {        
+        TBMConfiguration config = this.getModel().createConfiguration();
         this.addConfiguration(config);
         config.addElements(elements);
     }
@@ -69,12 +72,20 @@ public class TBMFocalElementImpl extends ResourceImpl implements TBMFocalElement
         
         List<List<Resource>> sets = new ArrayList<>();
         
-        for (Resource var = null ;  vars.hasNext() ; var = vars.next() ) {
+        //System.out.println("#################################");
+        
+        while(  vars.hasNext() ) {
+            Resource var = vars.next() ;
+            //System.out.println("++++++++++++++++++++++");
+            //System.out.println(var);
+            //System.out.println("******");
             ResIterator values = this.getModel().listResourcesWithProperty(RDF.type, var);
             List<Resource> curr = new ArrayList<>();
             sets.add(curr);
 
             while (values.hasNext()) {
+                //Resource v = values.next();
+                //System.out.println(v);
                 curr.add(values.next());
             }
         }
@@ -115,6 +126,11 @@ public class TBMFocalElementImpl extends ResourceImpl implements TBMFocalElement
     @Override
     public double getMass(){
         return this.getProperty(TBM.hasMass).getDouble();
+    }
+    
+    @Override
+    public void updateMass(double mass){
+        this.getProperty(TBM.hasMass).changeLiteralObject(mass);
     }
     
     // Static variables

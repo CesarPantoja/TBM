@@ -27,6 +27,11 @@ public class TBMConfigurationImpl extends ResourceImpl implements TBMConfigurati
     private TBMConfigurationImpl(Node n, EnhGraph eg) {
         super(n, eg);
     }
+    
+    @Override
+    public boolean hasElement(Resource element){
+        return this.hasProperty(TBM.hasElement, element);
+    }
 
     @Override
     public void addElement(Resource element) {

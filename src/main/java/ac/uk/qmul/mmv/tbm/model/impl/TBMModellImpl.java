@@ -66,9 +66,91 @@ public class TBMModellImpl extends ModelCom implements TBMModel {
 
         //extend all the FEs of the two potentials
         //-> extend FEs of potential1
-        
+        Set<TBMFocalElement> extendedFEP1 = new HashSet<>();
+        potential1.listFocalElements().forEachRemaining(FE -> extendedFEP1.add(extend(FE, combDomain)));
         //-> extend FEs of potential2
+        Set<TBMFocalElement> extendedFEP2 = new HashSet<>();
+        potential2.listFocalElements().forEachRemaining(FE -> extendedFEP2.add(extend(FE, combDomain)));
+     
+        double conflict = 0;
+        
         //foreach focal element fe1 in potential1
+        for (TBMFocalElement FE1 : extendedFEP1) {
+            for (TBMFocalElement FE2 : extendedFEP2) {                
+                //Create new Focal Element
+                TBMFocalElement result = this.createFocalElement();
+                result.setDomain(combDomain);
+                
+                boolean changed = false;
+                
+                for (TBMConfiguration config1 : FE1.listAllConfigurations().toSet()) {                    
+                    for (TBMConfiguration config2 : FE2.listAllConfigurations().toSet()) {
+                        //System.out.println("checking: *************");
+                        //config1.listAllElements().forEachRemaining(R -> System.out.print(R+" "));
+                        //System.out.println();
+                        //config2.listAllElements().forEachRemaining(R -> System.out.print(R+" "));
+                        //System.out.println();
+                        //System.out.println("next config ************************");
+                        boolean equal = true;
+                        for (Resource element : config1.listAllElements().toSet()) {
+                            //System.out.println("Checking "+element.toString());
+                            if (!config2.hasElement(element)) {
+                                //System.out.println("xxxxxx not found");
+                                equal = false;
+                                break;
+                            }
+                        }
+                        if (equal) {
+                            //System.out.println("found ttttttttttttttttttttttttttttttttttttttttttttttttttttttttt");
+                            result.addConfiguration(config2);
+                            changed = true;
+                            // Add to new Focal Element
+                        }
+                    }
+                }
+                if (!changed) {
+                    conflict += (FE1.getMass() * FE2.getMass());
+                    //System.out.println("*****not changed "+(FE1.getMass() * FE2.getMass()));
+                }
+                else{
+                    
+                    result.setMass(FE1.getMass()*FE2.getMass());
+                    //System.out.println("Changed. new mass:"+result.getMass());
+                    combPotential.addFocalElement(result);
+                }
+                // If the new Focal Element is not empty, compute mass and add to new potential                
+                // else accumulate the conflict
+                //System.out.println("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+            }
+        }
+        
+        //If there was conflict, recompute the masses of resulting focal elements
+        if (conflict > 0) {
+            //System.out.println("conflict! "+conflict);
+            for (TBMFocalElement combFocalElmnt : combPotential.listFocalElements().toSet()) {
+                
+                combFocalElmnt.updateMass((1/(1-conflict))*combFocalElmnt.getMass());
+            }
+        }
+        
+        
+        
+        
+        
+        
+        //Remove TMP extended focal elements
+        extendedFEP1.forEach((FE) -> 
+        {
+            FE.listAllConfigurations().forEachRemaining(conf -> conf.removeProperties());
+            FE.removeProperties();
+        });
+        
+        extendedFEP2.forEach((FE) -> 
+        {
+            //FE.listAllConfigurations().forEachRemaining(conf -> conf.removeProperties());
+            FE.removeProperties();
+        });
+        
         //foreach focal element fe2 in potential2
         //foreach configuration c1 in fe1
         //foreach configuration c2 in fe2
@@ -83,15 +165,23 @@ public class TBMModellImpl extends ModelCom implements TBMModel {
         // Get from domain the variables that are not in focalElement 
         Set<Resource> diff = domain.listVariables().filterDrop(r -> focalElement.getDomain().hasVariable(r)).toSet();
 
+        TBMFocalElement result = this.createFocalElement();
+
+        result.setMass(focalElement.getMass());
+        result.setDomain(domain);
+        
         if (diff.isEmpty()) {
-            // If there are no differences, we return the same focalElement
-            return focalElement;
+            // Clone focal element
+            for (TBMConfiguration configuration : focalElement.listAllConfigurations().toSet()) {
+                 //Create empty conf
+                TBMConfiguration newConfig = this.createConfiguration();
+                //Add variables of config
+                configuration.listAllElements().forEachRemaining(res -> newConfig.addElement(res));                
+                //Add config to result
+                result.addConfiguration(configuration);
+            }           
+            
         } else {
-
-            TBMFocalElement result = this.createFocalElement();
-
-            result.setMass(focalElement.getMass());
-            result.setDomain(domain);
 
             Set<TBMConfiguration> origConfigurations = focalElement.listAllConfigurations().toSet();
 
@@ -122,8 +212,8 @@ public class TBMModellImpl extends ModelCom implements TBMModel {
             //add resulting configs to result FE
             resultConfigurations.forEach(conf -> result.addConfiguration(conf));
         
-            return result;
         }
+        return result;
     }
 
     @Override
