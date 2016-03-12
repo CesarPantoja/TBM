@@ -16,6 +16,8 @@ public interface TBMFocalElement extends Resource{
 
     public void setDomain(TBMVarDomain domain);
     
+    public boolean isAllConfigsSubsetOf(TBMFocalElement focalElement);
+    
     public TBMVarDomain getDomain();
 
     public void addConfiguration(Resource... elements);
@@ -32,4 +34,5 @@ public interface TBMFocalElement extends Resource{
 
     public void updateMass(double mass);
     
+    public boolean remove();
 }

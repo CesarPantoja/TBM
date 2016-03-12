@@ -40,6 +40,19 @@ public class TBMFocalElementImpl extends ResourceImpl implements TBMFocalElement
     public TBMFocalElementImpl(Node n, EnhGraph eg) {
         super(n, eg);
     }
+    
+    @Override
+    public boolean isAllConfigsSubsetOf(TBMFocalElement focalElement){
+        
+        for (TBMConfiguration configThat : focalElement.listAllConfigurations().toSet()) {
+            for (TBMConfiguration configThis : this.listAllConfigurations().toSet()) {
+                if (!configThat.isSubsetOf(configThis)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 
     @Override
     public void setDomain(TBMVarDomain domain) {
@@ -133,6 +146,14 @@ public class TBMFocalElementImpl extends ResourceImpl implements TBMFocalElement
         this.getProperty(TBM.hasMass).changeLiteralObject(mass);
     }
     
+    @Override
+    public boolean remove(){
+        this.listAllConfigurations().toSet().forEach(X->X.remove());
+        this.getModel().removeAll(this, null, null);
+        this.getModel().removeAll(null, null, this);
+        return true;
+    }
+    
     // Static variables
     //////////////////////////////////
 
@@ -158,6 +179,7 @@ public class TBMFocalElementImpl extends ResourceImpl implements TBMFocalElement
             // node will support being an OntClass facet if it has rdf:type owl:Class or equivalent
             Profile profile = (eg instanceof TBMModel) ? ((TBMModel) eg).getProfile() : null;
             return (profile != null)  &&  profile.isSupported( node, eg, TBMFocalElement.class );
+            //return TBMModellImpl.prof.isSupported(node, eg, TBMFocalElement.class);
         }
     };
 }

@@ -18,10 +18,7 @@ import org.apache.jena.ontology.Profile;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
-import org.apache.jena.rdf.model.Statement;
-import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.rdf.model.impl.ModelCom;
-import org.apache.jena.util.iterator.ExtendedIterator;
 import org.apache.jena.vocabulary.RDF;
 
 /**
@@ -48,14 +45,35 @@ public class TBMModellImpl extends ModelCom implements TBMModel {
     }
 
     @Override
+    public TBMFocalElement createFocalElement(String URI) {
+        return createNamedResource(URI, TBM.FocalElement, TBMFocalElement.class);
+    }
+
+    @Override
     public TBMPotential createPotential() {
         return createAnonResource(TBM.Potential, TBMPotential.class);
     }
 
     @Override
+    public TBMPotential createPotential(String URI) {
+        return createNamedResource(URI, TBM.Potential, TBMPotential.class);
+    }
+
+    @Override
     public TBMPotential combine(TBMPotential potential1, TBMPotential potential2) {
+        return this.combine(null, potential1, potential2);
+    }
+
+    @Override
+    public TBMPotential combine(String URI, TBMPotential potential1, TBMPotential potential2) {
         //create the new domain with the vars of both potential's domain
-        TBMPotential combPotential = this.createPotential();
+        TBMPotential combPotential;
+        if (URI == null || URI.isEmpty()) {
+            combPotential = this.createPotential();
+        } else {
+            combPotential = this.createPotential(URI);
+        }
+
         TBMVarDomain combDomain = this.createDomain();
         //Set with all the vars
         Set<Resource> vars = potential1.getDomain().listVariables()
@@ -64,26 +82,36 @@ public class TBMModellImpl extends ModelCom implements TBMModel {
         vars.forEach(p -> combDomain.addVariable(p));
         combPotential.setDomain(combDomain);
 
+        //combDomain.listVariables().forEachRemaining(X->System.out.println(" "+X));
         //extend all the FEs of the two potentials
         //-> extend FEs of potential1
         Set<TBMFocalElement> extendedFEP1 = new HashSet<>();
-        potential1.listFocalElements().forEachRemaining(FE -> extendedFEP1.add(extend(FE, combDomain)));
+        for (TBMFocalElement FE : potential1.listFocalElements().toSet()) {
+            extendedFEP1.add(extend(FE, combDomain));
+        }
+        //potential1.listFocalElements().forEachRemaining(FE -> extendedFEP1.add(extend(FE, combDomain)));
         //-> extend FEs of potential2
         Set<TBMFocalElement> extendedFEP2 = new HashSet<>();
-        potential2.listFocalElements().forEachRemaining(FE -> extendedFEP2.add(extend(FE, combDomain)));
-     
+        for (TBMFocalElement FE : potential2.listFocalElements().toSet()) {
+            extendedFEP2.add(extend(FE, combDomain));
+        }
+        //potential2.listFocalElements().forEachRemaining(FE -> extendedFEP2.add(extend(FE, combDomain)));
+
         double conflict = 0;
-        
-        //foreach focal element fe1 in potential1
+
+        //foreach focal element 
         for (TBMFocalElement FE1 : extendedFEP1) {
-            for (TBMFocalElement FE2 : extendedFEP2) {                
+            //FE1.listAllConfigurations().forEachRemaining(X->X.listAllElements().forEachRemaining(System.out::println));
+            for (TBMFocalElement FE2 : extendedFEP2) {
                 //Create new Focal Element
                 TBMFocalElement result = this.createFocalElement();
                 result.setDomain(combDomain);
-                
+
                 boolean changed = false;
-                
-                for (TBMConfiguration config1 : FE1.listAllConfigurations().toSet()) {                    
+                /*System.out.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+                FE2.listAllConfigurations().forEachRemaining(X->X.listAllElements().forEachRemaining(System.out::println));
+                System.out.println("YYYYYYYYYYYYYYYYYYYYYYYYYYYYYY");*/
+                for (TBMConfiguration config1 : FE1.listAllConfigurations().toSet()) {
                     for (TBMConfiguration config2 : FE2.listAllConfigurations().toSet()) {
                         //System.out.println("checking: *************");
                         //config1.listAllElements().forEachRemaining(R -> System.out.print(R+" "));
@@ -102,7 +130,12 @@ public class TBMModellImpl extends ModelCom implements TBMModel {
                         }
                         if (equal) {
                             //System.out.println("found ttttttttttttttttttttttttttttttttttttttttttttttttttttttttt");
-                            result.addConfiguration(config2);
+                            TBMConfiguration newConf = this.createConfiguration();
+                            for (Resource res : config2.listAllElements().toSet()) {
+                                newConf.addElement(res);
+                            }
+                            //config2.listAllElements().forEachRemaining(X->newConf.addElement(X));
+                            result.addConfiguration(newConf);
                             changed = true;
                             // Add to new Focal Element
                         }
@@ -111,46 +144,34 @@ public class TBMModellImpl extends ModelCom implements TBMModel {
                 if (!changed) {
                     conflict += (FE1.getMass() * FE2.getMass());
                     //System.out.println("*****not changed "+(FE1.getMass() * FE2.getMass()));
-                }
-                else{
-                    
-                    result.setMass(FE1.getMass()*FE2.getMass());
+                } else {
+
+                    result.setMass(FE1.getMass() * FE2.getMass());
                     //System.out.println("Changed. new mass:"+result.getMass());
                     combPotential.addFocalElement(result);
+                    //System.out.println("Added: ");
+                    //result.listAllConfigurations().forEachRemaining(X->X.listAllElements().forEachRemaining(System.out::println));
                 }
                 // If the new Focal Element is not empty, compute mass and add to new potential                
                 // else accumulate the conflict
                 //System.out.println("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
             }
         }
-        
+
         //If there was conflict, recompute the masses of resulting focal elements
         if (conflict > 0) {
             //System.out.println("conflict! "+conflict);
             for (TBMFocalElement combFocalElmnt : combPotential.listFocalElements().toSet()) {
-                
-                combFocalElmnt.updateMass((1/(1-conflict))*combFocalElmnt.getMass());
+
+                combFocalElmnt.updateMass((1 / (1 - conflict)) * combFocalElmnt.getMass());
             }
         }
-        
-        
-        
-        
-        
-        
+
         //Remove TMP extended focal elements
-        extendedFEP1.forEach((FE) -> 
-        {
-            FE.listAllConfigurations().forEachRemaining(conf -> conf.removeProperties());
-            FE.removeProperties();
-        });
-        
-        extendedFEP2.forEach((FE) -> 
-        {
-            //FE.listAllConfigurations().forEachRemaining(conf -> conf.removeProperties());
-            FE.removeProperties();
-        });
-        
+        extendedFEP1.forEach((FE) -> FE.remove());
+
+        extendedFEP2.forEach((FE) -> FE.remove());
+
         //foreach focal element fe2 in potential2
         //foreach configuration c1 in fe1
         //foreach configuration c2 in fe2
@@ -169,19 +190,22 @@ public class TBMModellImpl extends ModelCom implements TBMModel {
 
         result.setMass(focalElement.getMass());
         result.setDomain(domain);
-        
-        if (diff.isEmpty()) {
+
+        if (diff.isEmpty()) { //there are no differences, clone the focalElement and it's configurations
             // Clone focal element
             for (TBMConfiguration configuration : focalElement.listAllConfigurations().toSet()) {
-                 //Create empty conf
+                //Create empty conf
                 TBMConfiguration newConfig = this.createConfiguration();
                 //Add variables of config
-                configuration.listAllElements().forEachRemaining(res -> newConfig.addElement(res));                
+                //configuration.listAllElements().forEachRemaining(res -> newConfig.addElement(res));                
+                for (Resource res : configuration.listAllElements().toSet()) {
+                    newConfig.addElement(res);
+                }
                 //Add config to result
                 result.addConfiguration(configuration);
-            }           
-            
-        } else {
+            }
+
+        } else { //there are differences
 
             Set<TBMConfiguration> origConfigurations = focalElement.listAllConfigurations().toSet();
 
@@ -198,7 +222,10 @@ public class TBMModellImpl extends ModelCom implements TBMModel {
                         //Create empty conf
                         TBMConfiguration currentConfig = this.createConfiguration();
                         //Add variables of current config
-                        resultConfiguration.listAllElements().forEachRemaining(res -> currentConfig.addElement(res));
+                        for (Resource res : resultConfiguration.listAllElements().toSet()) {
+                            currentConfig.addElement(res);
+                        }
+                        //resultConfiguration.listAllElements().forEachRemaining(res -> currentConfig.addElement(res));
                         //Add new variable
                         currentConfig.addElement(instance);
                         //Add result to current congig
@@ -208,10 +235,10 @@ public class TBMModellImpl extends ModelCom implements TBMModel {
                 //replace old configs with new configs
                 resultConfigurations = newConfigurations;
             }
-            
+
             //add resulting configs to result FE
             resultConfigurations.forEach(conf -> result.addConfiguration(conf));
-        
+
         }
         return result;
     }
@@ -229,5 +256,11 @@ public class TBMModellImpl extends ModelCom implements TBMModel {
     private <T extends RDFNode> T createAnonResource(Resource type, Class<T> view) {
         return this.createResource(type).
                 as(view);
+    }
+
+    private <T extends RDFNode> T createNamedResource(String URI, Resource type, Class<T> view) {
+        return this.createResource(URI)
+                .addProperty(RDF.type, type)
+                .as(view);
     }
 }

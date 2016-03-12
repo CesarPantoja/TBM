@@ -50,6 +50,19 @@ public class TBMConfigurationImpl extends ResourceImpl implements TBMConfigurati
         return this.listProperties(TBM.hasElement).mapWith(p -> p.getResource());
     }
     
+    @Override
+    public boolean isSubsetOf(TBMConfiguration config){
+        return this.listAllElements().toSet().stream().allMatch((res) -> (config.hasElement(res)));
+    }
+    
+    @Override
+    public boolean remove(){
+        //System.out.println("remooving");
+        this.getModel().removeAll(this, null, null);
+        this.getModel().removeAll(null, null, this);
+        return true;
+    }
+    
     // Static variables
     //////////////////////////////////
 

@@ -5,6 +5,7 @@
  */
 package ac.uk.qmul.mmv.tbm.model.impl;
 
+import ac.uk.qmul.mmv.tbm.model.TBMConfiguration;
 import ac.uk.qmul.mmv.tbm.model.TBMFocalElement;
 import ac.uk.qmul.mmv.tbm.model.TBMModel;
 import ac.uk.qmul.mmv.tbm.model.TBMPotential;
@@ -54,28 +55,59 @@ public class TBMPotentialImpl extends ResourceImpl implements TBMPotential {
     }
 
     @Override
+    public float pls(TBMFocalElement query) {
+        float pls = 0;        
+        for (TBMConfiguration configQuery : query.listAllConfigurations().toSet()) {
+            for (TBMFocalElement FE : this.listFocalElements().toSet()){
+                for (TBMConfiguration confThis : FE.listAllConfigurations().toSet()) {
+                    if (configQuery.isSubsetOf(confThis)) {
+                        pls+=FE.getMass();
+                        break;
+                    }
+                }
+            }
+        }
+        return pls;
+        
+        //for each FE focalElement
+            //if FE == query
+                //add up mass
+        
+        //return mass
+    }
+
+    @Override
     public float bel(TBMFocalElement query) {
+        float bel = 0;
+        for (TBMFocalElement focalElement : this.listFocalElements().toSet()) {
+            if (query.isAllConfigsSubsetOf(focalElement)) {
+                bel+=focalElement.getMass();                        
+            }
+        }
+        return bel;
+    }
+
+    @Override
+    public float dou(TBMFocalElement query) {
+        return 1 - pls(query);
+    }
+
+    @Override
+    public float com(TBMFocalElement query) {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     @Override
-    public double pls(TBMFocalElement query) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    public float ign(TBMFocalElement query) {
+        return pls(query) - bel(query);
     }
-
+    
     @Override
-    public double dou(TBMFocalElement query) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public double com(TBMFocalElement query) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public double ign(TBMFocalElement query) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    public boolean remove(){
+        this.listFocalElements().toSet().forEach(X->X.remove());
+        this.getModel().removeAll(this, null, null);
+        this.getModel().removeAll(null, null, this);
+        return true;
     }
     
             // Static variables
@@ -101,8 +133,9 @@ public class TBMPotentialImpl extends ResourceImpl implements TBMPotential {
         @Override
         public boolean canWrap( Node node, EnhGraph eg ) {
             // node will support being an OntClass facet if it has rdf:type owl:Class or equivalent
-            Profile profile = (eg instanceof TBMModel) ? ((TBMModel) eg).getProfile() : null;
+            Profile profile = (eg instanceof TBMModel) ? ((TBMModel) eg).getProfile() : null;            
             return (profile != null)  &&  profile.isSupported( node, eg, TBMPotential.class );
+            //return TBMModellImpl.prof.isSupported(node, eg, TBMPotential.class);
         }
     };
 }

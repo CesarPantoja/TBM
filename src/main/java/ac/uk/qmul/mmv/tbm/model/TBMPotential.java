@@ -24,12 +24,14 @@ public interface TBMPotential extends Resource{
 
     public float bel(TBMFocalElement query);
 
-    public double pls(TBMFocalElement query);
+    public float pls(TBMFocalElement query);
 
-    public double dou(TBMFocalElement query);
+    public float dou(TBMFocalElement query);
 
-    public double com(TBMFocalElement query);
+    public float com(TBMFocalElement query);
 
-    public double ign(TBMFocalElement query);
+    public float ign(TBMFocalElement query);
+    
+    public boolean remove();
     
 }

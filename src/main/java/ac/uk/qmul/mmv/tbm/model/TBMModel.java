@@ -21,9 +21,15 @@ public interface TBMModel extends Model{
     public TBMVarDomain createDomain();
 
     public TBMFocalElement createFocalElement();
+    
+    public TBMFocalElement createFocalElement(String URI);
 
     public TBMPotential createPotential();
+    
+    public TBMPotential createPotential(String URI);
 
+    public TBMPotential combine(String URI, TBMPotential potential1, TBMPotential potential2);
+    
     public TBMPotential combine(TBMPotential potential1, TBMPotential potential2);
     
     public TBMConfiguration createConfiguration();

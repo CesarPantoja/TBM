@@ -22,4 +22,8 @@ public interface TBMConfiguration extends Resource {
     
     public ExtendedIterator<Resource> listAllElements();
     
+    public boolean isSubsetOf(TBMConfiguration config);
+    
+    public boolean remove();
+    
 }
