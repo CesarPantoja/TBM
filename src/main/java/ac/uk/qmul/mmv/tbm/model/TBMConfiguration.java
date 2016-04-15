@@ -22,7 +22,7 @@ public interface TBMConfiguration extends Resource {
     
     public ExtendedIterator<Resource> listAllElements();
     
-    public boolean isSubsetOf(TBMConfiguration config);
+    public boolean equals(TBMConfiguration config, TBMVarDomain domain);
     
     public boolean remove();
     

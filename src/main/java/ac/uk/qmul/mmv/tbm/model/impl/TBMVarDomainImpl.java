@@ -18,6 +18,7 @@ import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.rdf.model.impl.ResourceImpl;
 import org.apache.jena.util.iterator.ExtendedIterator;
+import org.apache.jena.vocabulary.RDF;
 
 /**
  *
@@ -29,10 +30,36 @@ public class TBMVarDomainImpl extends ResourceImpl implements TBMVarDomain {
         super(n, m);
     }
 
-    
-        // Static variables
-    //////////////////////////////////
+    @Override
+    public void addVariable(Resource variable) {
+        this.addProperty(TBM.hasVariable, variable);
+    }
 
+    @Override
+    public boolean hasVariable(Resource variable) {
+        return this.hasProperty(TBM.hasVariable, variable);
+    }
+
+    @Override
+    public ExtendedIterator<Resource> listVariables() {
+        return this.listProperties(TBM.hasVariable).mapWith(p -> p.getResource());
+    }
+
+    //returns true if the param variable is of one of the types of this variables
+    @Override
+    public boolean validVar(Resource variable) {
+        try (ExtendedIterator<Resource> vars = this.listVariables()) {
+            while (vars.hasNext()) {
+                if (variable.hasProperty(RDF.type, vars.next())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+// Static variables
+    //////////////////////////////////
     /**
      * A factory for generating OntClass facets from nodes in enhanced graphs.
      * Note: should not be invoked directly by user code: use
@@ -41,36 +68,19 @@ public class TBMVarDomainImpl extends ResourceImpl implements TBMVarDomain {
     @SuppressWarnings("hiding")
     public static Implementation factory = new Implementation() {
         @Override
-        public EnhNode wrap( Node n, EnhGraph eg ) {
-            if (canWrap( n, eg )) {
-                return new TBMVarDomainImpl( n, eg );
-            }
-            else {
-                throw new ConversionException( "Cannot convert node " + n.toString() + " to TBMVarDomain: it does not have rdf:type TBM:VarDomain or equivalent");
+        public EnhNode wrap(Node n, EnhGraph eg) {
+            if (canWrap(n, eg)) {
+                return new TBMVarDomainImpl(n, eg);
+            } else {
+                throw new ConversionException("Cannot convert node " + n.toString() + " to TBMVarDomain: it does not have rdf:type TBM:VarDomain or equivalent");
             }
         }
 
         @Override
-        public boolean canWrap( Node node, EnhGraph eg ) {
+        public boolean canWrap(Node node, EnhGraph eg) {
             // node will support being an OntClass facet if it has rdf:type owl:Class or equivalent
             Profile profile = (eg instanceof TBMModel) ? ((TBMModel) eg).getProfile() : null;
-            return (profile != null)  &&  profile.isSupported( node, eg, TBMVarDomain.class );
+            return (profile != null) && profile.isSupported(node, eg, TBMVarDomain.class);
         }
     };
-    
-    @Override
-    public void addVariable(Resource variable) {
-        this.addProperty(TBM.hasVariable, variable);
-    }
-    
-    @Override
-    public boolean hasVariable(Resource variable) {
-        return this.hasProperty(TBM.hasVariable, variable);
-    }
-    
-    @Override
-    public ExtendedIterator<Resource> listVariables(){
-        return this.listProperties(TBM.hasVariable).mapWith(p -> p.getObject().asResource());
-    }
-    
 }

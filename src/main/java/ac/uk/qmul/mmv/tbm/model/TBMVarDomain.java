@@ -21,4 +21,5 @@ public interface TBMVarDomain extends Resource {
     
     public ExtendedIterator<Resource> listVariables(); 
     
+    public boolean validVar(Resource variable);
 }

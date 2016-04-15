@@ -15,8 +15,12 @@ import org.apache.jena.util.iterator.ExtendedIterator;
 public interface TBMFocalElement extends Resource{
 
     public void setDomain(TBMVarDomain domain);
+
+    public boolean equalConfigs(TBMFocalElement focalElement);
     
-    public boolean isAllConfigsSubsetOf(TBMFocalElement focalElement);
+    public boolean contains(TBMFocalElement focalElement);
+    
+    public boolean contains(TBMConfiguration config, TBMVarDomain domain);
     
     public TBMVarDomain getDomain();
 

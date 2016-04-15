@@ -33,20 +33,28 @@ import org.apache.jena.vocabulary.RDF;
 public class TBMFocalElementImpl extends ResourceImpl implements TBMFocalElement {
 
     @Override
-    public TBMModel getModel(){
-        return (TBMModel)super.getModel();
+    public TBMModel getModel() {
+        return (TBMModel) super.getModel();
     }
-    
+
     public TBMFocalElementImpl(Node n, EnhGraph eg) {
         super(n, eg);
     }
-    
+
+    //returns true if the configs on the param focalElement are equal to the configs on this
     @Override
-    public boolean isAllConfigsSubsetOf(TBMFocalElement focalElement){
+    public boolean equalConfigs(TBMFocalElement focalElement) {
         
-        for (TBMConfiguration configThat : focalElement.listAllConfigurations().toSet()) {
-            for (TBMConfiguration configThis : this.listAllConfigurations().toSet()) {
-                if (!configThat.isSubsetOf(configThis)) {
+        try (ExtendedIterator<TBMConfiguration> configThat = focalElement.listAllConfigurations()) {
+            while (configThat.hasNext()) {
+                if (!this.contains(configThat.next(), focalElement.getDomain())) {
+                    return false;
+                }
+            }
+        }
+        try (ExtendedIterator<TBMConfiguration> configThis = this.listAllConfigurations()) {
+            while (configThis.hasNext()) {
+                if (!focalElement.contains(configThis.next(), focalElement.getDomain())) {
                     return false;
                 }
             }
@@ -54,6 +62,70 @@ public class TBMFocalElementImpl extends ResourceImpl implements TBMFocalElement
         return true;
     }
 
+    //returns true if this FE's configs contains the param config
+    @Override
+    public boolean contains(TBMConfiguration config, TBMVarDomain domain) {
+        try (ExtendedIterator<TBMConfiguration> iter = this.listAllConfigurations()) {
+            while (iter.hasNext()) {
+                if (config.equals(iter.next(), domain)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    //returns true if the param focal element has the same configurations and elements as this FE
+    @Override
+    public boolean contains(TBMFocalElement focalElement) {
+        try (ExtendedIterator<TBMConfiguration> configThat = focalElement.listAllConfigurations()) {
+            while (configThat.hasNext()) {
+                if (!this.contains(configThat.next(), focalElement.getDomain())) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    //return true if all the configs in the arg FE are also on this FE
+    //@Override
+    /*public boolean isAllConfigsSubsetOf(TBMFocalElement focalElement) {
+
+        try (ExtendedIterator<Statement> configThat = focalElement.listProperties(TBM.hasConfiguration)) {
+            while (configThat.hasNext()) {
+                if (!configThat.next().getObject().as(TBMConfiguration.class).isSubsetOf(configThis.next().getObject().as(TBMConfiguration.class))) {
+                    return false;
+                }
+            }
+            return true;
+        }*/
+
+ /*try (ExtendedIterator<Statement> configThat = focalElement.listProperties(TBM.hasConfiguration);
+                ExtendedIterator<Statement> configThis = this.listProperties(TBM.hasConfiguration)) {
+            while (configThat.hasNext()) {
+                while (configThis.hasNext()) {
+                    if (!configThat.next().getObject().as(TBMConfiguration.class).isSubsetOf(configThis.next().getObject().as(TBMConfiguration.class))) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }*/
+ /*finally{
+            configThat.close();
+            configThis.close();
+        }*/
+ /*
+        for (TBMConfiguration configThat : focalElement.listAllConfigurations().toSet()) {
+            for (TBMConfiguration configThis : this.listAllConfigurations().toSet()) {
+                if (!configThat.isSubsetOf(configThis)) {
+                    return false;
+                }
+            }
+        }
+        return true;*/
+    //}
     @Override
     public void setDomain(TBMVarDomain domain) {
         this.addProperty(TBM.hasDomain, domain);
@@ -70,7 +142,7 @@ public class TBMFocalElementImpl extends ResourceImpl implements TBMFocalElement
     }
 
     @Override
-    public void addConfiguration(Resource... elements) {        
+    public void addConfiguration(Resource... elements) {
         TBMConfiguration config = this.getModel().createConfiguration();
         this.addConfiguration(config);
         config.addElements(elements);
@@ -80,33 +152,36 @@ public class TBMFocalElementImpl extends ResourceImpl implements TBMFocalElement
     public void addAllConfigurations() {
 
         TBMVarDomain domain = this.getDomain();
-        
-        ExtendedIterator<Resource> vars = domain.listVariables();
-        
         List<List<Resource>> sets = new ArrayList<>();
-        
-        //System.out.println("#################################");
-        
-        while(  vars.hasNext() ) {
-            Resource var = vars.next() ;
-            //System.out.println("++++++++++++++++++++++");
-            //System.out.println(var);
-            //System.out.println("******");
-            ResIterator values = this.getModel().listResourcesWithProperty(RDF.type, var);
-            List<Resource> curr = new ArrayList<>();
-            sets.add(curr);
 
-            while (values.hasNext()) {
-                //Resource v = values.next();
-                //System.out.println(v);
-                curr.add(values.next());
+        try (ExtendedIterator<Resource> vars = domain.listVariables()) {
+
+            //System.out.println("#################################");
+            while (vars.hasNext()) {
+                Resource var = vars.next();
+                //System.out.println("++++++++++++++++++++++");
+                //System.out.println(var);
+                //System.out.println("******");
+                try (ResIterator values = this.getModel().listResourcesWithProperty(RDF.type, var)) {
+                    List<Resource> curr = new ArrayList<>();
+                    sets.add(curr);
+
+                    while (values.hasNext()) {
+                        //Resource v = values.next();
+                        //System.out.println(v);
+                        curr.add(values.next());
+                    }
+                }
             }
         }
 
         List<List<Resource>> result = _cartesianProduct(0, sets);
-        
+
         result.forEach((configuration) -> {
-            this.addConfiguration(configuration.toArray(new Resource[configuration.size()]));
+            TBMConfiguration conf = this.getModel().createConfiguration();
+            configuration.forEach(c -> conf.addElement(c));
+            this.addConfiguration(conf);
+            //this.addConfiguration(configuration.toArray(new Resource[configuration.size()]));
         });
     }
 
@@ -124,39 +199,42 @@ public class TBMFocalElementImpl extends ResourceImpl implements TBMFocalElement
         }
         return ret;
     }
-    
+
     @Override
-    public ExtendedIterator<TBMConfiguration> listAllConfigurations(){
+    public ExtendedIterator<TBMConfiguration> listAllConfigurations() {
         return this.listProperties(TBM.hasConfiguration).mapWith(c -> c.getObject().as(TBMConfiguration.class));
     }
-    
 
     @Override
     public void setMass(double mass) {
         this.addProperty(TBM.hasMass, mass);
     }
-    
+
     @Override
-    public double getMass(){
+    public double getMass() {
         return this.getProperty(TBM.hasMass).getDouble();
     }
-    
+
     @Override
-    public void updateMass(double mass){
+    public void updateMass(double mass) {
         this.getProperty(TBM.hasMass).changeLiteralObject(mass);
     }
-    
+
     @Override
-    public boolean remove(){
-        this.listAllConfigurations().toSet().forEach(X->X.remove());
+    public boolean remove() {
+        /*try(StmtIterator iter = this.listProperties(TBM.hasConfiguration)){
+            //.forEachRemaining(s -> s.getObject().as(TBMConfiguration.class).remove());
+            while(iter.hasNext())
+                iter.next().getObject().as(TBMConfiguration.class).remove();
+        }*/
+        this.listAllConfigurations().toSet().forEach(X -> X.remove());
         this.getModel().removeAll(this, null, null);
         this.getModel().removeAll(null, null, this);
         return true;
     }
-    
+
     // Static variables
     //////////////////////////////////
-
     /**
      * A factory for generating OntClass facets from nodes in enhanced graphs.
      * Note: should not be invoked directly by user code: use
@@ -165,20 +243,19 @@ public class TBMFocalElementImpl extends ResourceImpl implements TBMFocalElement
     @SuppressWarnings("hiding")
     public static Implementation factory = new Implementation() {
         @Override
-        public EnhNode wrap( Node n, EnhGraph eg ) {
-            if (canWrap( n, eg )) {
-                return new TBMFocalElementImpl(n, eg );
-            }
-            else {
-                throw new ConversionException( "Cannot convert node " + n.toString() + " to TBMFocalElement: it does not have rdf:type TBM:FocalElement or equivalent");
+        public EnhNode wrap(Node n, EnhGraph eg) {
+            if (canWrap(n, eg)) {
+                return new TBMFocalElementImpl(n, eg);
+            } else {
+                throw new ConversionException("Cannot convert node " + n.toString() + " to TBMFocalElement: it does not have rdf:type TBM:FocalElement or equivalent");
             }
         }
 
         @Override
-        public boolean canWrap( Node node, EnhGraph eg ) {
+        public boolean canWrap(Node node, EnhGraph eg) {
             // node will support being an OntClass facet if it has rdf:type owl:Class or equivalent
             Profile profile = (eg instanceof TBMModel) ? ((TBMModel) eg).getProfile() : null;
-            return (profile != null)  &&  profile.isSupported( node, eg, TBMFocalElement.class );
+            return (profile != null) && profile.isSupported(node, eg, TBMFocalElement.class);
             //return TBMModellImpl.prof.isSupported(node, eg, TBMFocalElement.class);
         }
     };

@@ -7,6 +7,7 @@ package ac.uk.qmul.mmv.tbm.model.impl;
 
 import ac.uk.qmul.mmv.tbm.model.TBMConfiguration;
 import ac.uk.qmul.mmv.tbm.model.TBMModel;
+import ac.uk.qmul.mmv.tbm.model.TBMVarDomain;
 import ac.uk.qmul.mmv.tbm.vocabulary.TBM;
 import org.apache.jena.enhanced.EnhGraph;
 import org.apache.jena.enhanced.EnhNode;
@@ -15,8 +16,10 @@ import org.apache.jena.graph.Node;
 import org.apache.jena.ontology.ConversionException;
 import org.apache.jena.ontology.Profile;
 import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.impl.ResourceImpl;
 import org.apache.jena.util.iterator.ExtendedIterator;
+import org.apache.jena.vocabulary.RDF;
 
 /**
  *
@@ -27,9 +30,9 @@ public class TBMConfigurationImpl extends ResourceImpl implements TBMConfigurati
     private TBMConfigurationImpl(Node n, EnhGraph eg) {
         super(n, eg);
     }
-    
+
     @Override
-    public boolean hasElement(Resource element){
+    public boolean hasElement(Resource element) {
         return this.hasProperty(TBM.hasElement, element);
     }
 
@@ -39,7 +42,7 @@ public class TBMConfigurationImpl extends ResourceImpl implements TBMConfigurati
     }
 
     @Override
-    public void addElements(Resource... elements) {        
+    public void addElements(Resource... elements) {
         for (Resource element : elements) {
             this.addElement(element);
         }
@@ -49,23 +52,44 @@ public class TBMConfigurationImpl extends ResourceImpl implements TBMConfigurati
     public ExtendedIterator<Resource> listAllElements() {
         return this.listProperties(TBM.hasElement).mapWith(p -> p.getResource());
     }
-    
+
+    //returns true if the configs are equal on the given domain
     @Override
-    public boolean isSubsetOf(TBMConfiguration config){
-        return this.listAllElements().toSet().stream().allMatch((res) -> (config.hasElement(res)));
+    public boolean equals(TBMConfiguration config, TBMVarDomain domain) {
+
+        //return this.listAllElements().toSet().stream().allMatch((res) -> (config.hasElement(res)));
+        //ExtendedIterator<Statement> iter = this.listProperties(TBM.hasElement);
+        try (ExtendedIterator<Resource> iter = this.listAllElements()) {
+            while (iter.hasNext()) {
+                Resource elem = iter.next();
+                
+                if (domain.validVar(elem) && !config.hasElement(elem)) {
+                    return false;
+                }
+            }
+        }
+
+        /*try (ExtendedIterator<Resource> iter = config.listAllElements()) {
+            while (iter.hasNext()) {
+                Resource elem = iter.next();
+                if (domain.validVar(elem) && !this.hasElement(elem)) {
+                    return false;
+                }
+            }
+        }*/
+        return true;
     }
-    
+
     @Override
-    public boolean remove(){
+    public boolean remove() {
         //System.out.println("remooving");
         this.getModel().removeAll(this, null, null);
         this.getModel().removeAll(null, null, this);
         return true;
     }
-    
+
     // Static variables
     //////////////////////////////////
-
     /**
      * A factory for generating OntClass facets from nodes in enhanced graphs.
      * Note: should not be invoked directly by user code: use
@@ -74,20 +98,19 @@ public class TBMConfigurationImpl extends ResourceImpl implements TBMConfigurati
     @SuppressWarnings("hiding")
     public static Implementation factory = new Implementation() {
         @Override
-        public EnhNode wrap( Node n, EnhGraph eg ) {
-            if (canWrap( n, eg )) {
-                return new TBMConfigurationImpl(n, eg );
-            }
-            else {
-                throw new ConversionException( "Cannot convert node " + n.toString() + " to TBMConfiguration: it does not have rdf:type TBM:Configuration or equivalent");
+        public EnhNode wrap(Node n, EnhGraph eg) {
+            if (canWrap(n, eg)) {
+                return new TBMConfigurationImpl(n, eg);
+            } else {
+                throw new ConversionException("Cannot convert node " + n.toString() + " to TBMConfiguration: it does not have rdf:type TBM:Configuration or equivalent");
             }
         }
 
         @Override
-        public boolean canWrap( Node node, EnhGraph eg ) {
+        public boolean canWrap(Node node, EnhGraph eg) {
             // node will support being an OntClass facet if it has rdf:type owl:Class or equivalent
             Profile profile = (eg instanceof TBMModel) ? ((TBMModel) eg).getProfile() : null;
-            return (profile != null)  &&  profile.isSupported( node, eg, TBMConfiguration.class );
+            return (profile != null) && profile.isSupported(node, eg, TBMConfiguration.class);
         }
     };
 }

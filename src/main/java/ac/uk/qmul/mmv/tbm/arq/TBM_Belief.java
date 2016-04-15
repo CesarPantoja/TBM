@@ -11,47 +11,37 @@ import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.sparql.expr.NodeValue;
+import org.apache.jena.util.iterator.ExtendedIterator;
+import org.apache.jena.vocabulary.RDF;
 
 /**
  *
  * @author Cesar
  */
-public class TBM_Belief extends TBM_FunctionBase{
+public class TBM_Belief extends TBM_FunctionBase {
 
     @Override
     public NodeValue exec(NodeValue v1, NodeValue v2) {
-        
+
         checkArgs(v1, v2);
-        
+
         return NodeValue.makeDouble(bel(graph, v1.asNode(), v2.asNode()));
-    }    
-    
-    public static double bel(Graph graph, Node v1, Node v2){
-        double bel = 0;
-        
-        Set<Triple> focalElements = graph.find(v1, TBM.hasFocalElement.asNode(), null).toSet();
-        
-        for(Triple t : focalElements){
-            if (isAllConfigsSubsetOf(graph, v2, t.getObject())) {
-                double mass = (double)graph.find(t.getObject(), TBM.hasMass.asNode(), null).toList().get(0).getObject().getLiteralValue();
-                bel+= mass;
-            }
-        }
-        
-        return bel;
     }
 
-    private static boolean isAllConfigsSubsetOf(Graph graph, Node focalElement, Node object) {
-        Set<Triple> feConfigs = graph.find(focalElement, TBM.hasConfiguration.asNode(), null).toSet(); //triples with [fe hasConfiguration config1]
-        Set<Triple> oConfigs = graph.find(object, TBM.hasConfiguration.asNode(), null).toSet(); //triples with configs2
-        
-        for (Triple feConfig : feConfigs) {
-            for (Triple oConfig : oConfigs) {
-                if(!graph.find(feConfig.getObject(), TBM.hasElement.asNode(), null).toSet().stream().allMatch( //[config1 hasElement resource]
-                        triple -> graph.contains(oConfig.getObject(), TBM.hasElement.asNode(), triple.getObject()))) // [config2 hasElement resource]
-                    return false;
+    public static double bel(Graph graph, Node potential, Node queryFocalElement) {
+
+        double bel = 0;
+
+        try (ExtendedIterator<Triple> focalElements = graph.find(potential, TBM.hasFocalElement.asNode(), null)) {
+
+            while (focalElements.hasNext()) {
+                Node focalElement = focalElements.next().getObject();
+                if (equalConfigs(graph, focalElement, queryFocalElement)) {
+                    double mass = (double) graph.find(focalElement, TBM.hasMass.asNode(), null).next().getObject().getLiteralValue();
+                    bel += mass;
+                }
             }
         }
-        return true;
+        return bel;
     }
 }
