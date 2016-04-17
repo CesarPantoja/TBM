@@ -164,64 +164,68 @@ public class CombineFocalElmThread implements Runnable {
         //        TBMModel tmpModel = TBMModelFactory.createTBMModel(null);
         //try (TBMModel tmpModel = TBMModelFactory.createTBMModel(null)) {
         TBMModel tmpModel = TBMModelFactory.createTBMModel(null);
-            //destModel.enterCriticalSection(Lock.WRITE);
-            //Create new Focal Element
-            TBMFocalElement result = tmpModel.createFocalElement();
-            result.setDomain(combDomain);
-            //destModel.leaveCriticalSection();
-            ExecutorService executor = Executors.newWorkStealingPool();
-            Changed changed = new Changed();
-            
-            //destModel.enterCriticalSection(Lock.READ);
-            //Set<TBMConfiguration> config1It = FE1.listAllConfigurations().toSet();
-            //destModel.leaveCriticalSection();
-            //try (ExtendedIterator<TBMConfiguration> config1It = FE1.listAllConfigurations()) {
-            ExtendedIterator<TBMConfiguration> config1It = FE1.listAllConfigurations();
-                while (config1It.hasNext()) {
-                //for(TBMConfiguration config1 : config1It){
-                    TBMConfiguration config1 = config1It.next();
-                    //FE2.getModel().enterCriticalSection(Lock.READ);
-                    //Set<TBMConfiguration> config2It = FE2.listAllConfigurations().toSet();
-                    //FE2.getModel().leaveCriticalSection();
-                    //try (ExtendedIterator<TBMConfiguration> config2It = FE2.listAllConfigurations()) {
-                    ExtendedIterator<TBMConfiguration> config2It = FE2.listAllConfigurations();   
-                        while (config2It.hasNext()) {
-                        //for(TBMConfiguration config2 : config2It) {
-                            TBMConfiguration config2 = config2It.next();
+        //destModel.enterCriticalSection(Lock.WRITE);
+        //Create new Focal Element
+        TBMFocalElement result = tmpModel.createFocalElement();
+        result.setDomain(combDomain);
+        //destModel.leaveCriticalSection();
+        ExecutorService executor = Executors.newWorkStealingPool();
+        Changed changed = new Changed();
 
-                            Runnable worker = new CombineConfThread(tmpModel, result, config1, config2, changed);
-                            executor.execute(worker);
-                        }
-                    //}
-                }
+        //destModel.enterCriticalSection(Lock.READ);
+        //Set<TBMConfiguration> config1It = FE1.listAllConfigurations().toSet();
+        //destModel.leaveCriticalSection();
+        //try (ExtendedIterator<TBMConfiguration> config1It = FE1.listAllConfigurations()) {
+        ExtendedIterator<TBMConfiguration> config1It = FE1.listAllConfigurations();
+        while (config1It.hasNext()) {
+            //for(TBMConfiguration config1 : config1It){
+            TBMConfiguration config1 = config1It.next();
+            //FE2.getModel().enterCriticalSection(Lock.READ);
+            //Set<TBMConfiguration> config2It = FE2.listAllConfigurations().toSet();
+            //FE2.getModel().leaveCriticalSection();
+            //try (ExtendedIterator<TBMConfiguration> config2It = FE2.listAllConfigurations()) {
+            ExtendedIterator<TBMConfiguration> config2It = FE2.listAllConfigurations();
+            while (config2It.hasNext()) {
+                //for(TBMConfiguration config2 : config2It) {
+                TBMConfiguration config2 = config2It.next();
+
+                Runnable worker = new CombineConfThread(tmpModel, result, config1, config2, changed);
+                executor.execute(worker);
+            }
             //}
+        }
+        //}
 
-            executor.shutdown();
-            //try {
-                //executor.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
-                while (!executor.isTerminated()) {}
-            /*} catch (InterruptedException ex) {
+        executor.shutdown();
+        //try {
+        //executor.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
+        while (!executor.isTerminated()) {
+        }
+        /*} catch (InterruptedException ex) {
                 Logger.getLogger(CombineFocalElmThread.class.getName()).log(Level.SEVERE, null, ex);
             }*/
-            if (!changed.isChanged()) {
-                //destModel.enterCriticalSection(Lock.READ);                
-                conflict.increase(FE1.getMass() * FE2.getMass());
-                //destModel.leaveCriticalSection();
+        double mass = FE1.getMass() * FE2.getMass();
+        
+        if (!changed.isChanged()) {
+            //destModel.enterCriticalSection(Lock.READ);                
+            conflict.increase(mass);
+            //destModel.leaveCriticalSection();
 
-                //destModel.enterCriticalSection(Lock.WRITE);
-                //result.remove();
-                //destModel.leaveCriticalSection();
-            } else {
-                //destModel.enterCriticalSection(Lock.READ);
-                //result.getModel().enterCriticalSection(Lock.WRITE);
-                result.setMass(FE1.getMass() * FE2.getMass());
-                //result.getModel().leaveCriticalSection();
-                //destModel.leaveCriticalSection();
-                destModel.enterCriticalSection(Lock.WRITE);
-                destModel.add(tmpModel);                
-                combPotential.addFocalElement(result);
-                destModel.leaveCriticalSection();
-            }
+            //destModel.enterCriticalSection(Lock.WRITE);
+            //result.remove();
+            //destModel.leaveCriticalSection();
+        } else if (mass > 0.00001) {
+            //destModel.enterCriticalSection(Lock.READ);
+            //result.getModel().enterCriticalSection(Lock.WRITE);
+
+            result.setMass(mass);
+            //result.getModel().leaveCriticalSection();
+            //destModel.leaveCriticalSection();
+            destModel.enterCriticalSection(Lock.WRITE);
+            destModel.add(tmpModel);
+            combPotential.addFocalElement(result);
+            destModel.leaveCriticalSection();
+        }
         //}
     }
 
